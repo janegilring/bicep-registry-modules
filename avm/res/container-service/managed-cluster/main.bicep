@@ -448,6 +448,11 @@ param istioServiceMeshExternalIngressGatewayEnabled bool = false
 @description('Optional. The Istio Certificate Authority definition.')
 param istioServiceMeshCertificateAuthority istioServiceMeshCertificateAuthorityType?
 
+@description('Optional. The VNet subnet ID of the API Server.')
+param apiServerSubnetId string?
+
+param enableVnetIntegration bool = false
+
 // =========== //
 // Variables   //
 // =========== //
@@ -577,7 +582,7 @@ resource avmTelemetry 'Microsoft.Resources/deployments@2024-03-01' = if (enableT
 // Main Resources //
 // ============== //
 
-resource managedCluster 'Microsoft.ContainerService/managedClusters@2025-05-02-preview' = {
+resource managedCluster 'Microsoft.ContainerService/managedClusters@2025-07-01' = {
   name: name
   location: location
   tags: tags
@@ -627,7 +632,7 @@ resource managedCluster 'Microsoft.ContainerService/managedClusters@2025-05-02-p
       securityProfile: {
         enableSecureBoot: profile.?enableSecureBoot ?? false
         enableVTPM: profile.?enableVTPM ?? false
-        sshAccess: skuName == 'Automatic' ? 'Disabled' : 'LocalUser'
+        //sshAccess: skuName == 'Automatic' ? 'Disabled' : 'LocalUser'
       }
       spotMaxPrice: profile.?spotMaxPrice
       tags: profile.?tags
@@ -744,6 +749,9 @@ resource managedCluster 'Microsoft.ContainerService/managedClusters@2025-05-02-p
     nodeProvisioningProfile: !empty(nodeProvisioningProfileMode)
       ? {
           mode: nodeProvisioningProfileMode
+          ...(nodeProvisioningProfileMode == 'Auto' ? {
+            defaultNodePools: 'Auto'
+          } : {})
         }
       : null
     workloadAutoScalerProfile: {
@@ -792,7 +800,7 @@ resource managedCluster 'Microsoft.ContainerService/managedClusters@2025-05-02-p
           }
         : null
     }
-    publicNetworkAccess: publicNetworkAccess
+    //publicNetworkAccess: publicNetworkAccess
     aadProfile: !empty(aadProfile)
       ? {
           clientAppID: aadProfile.?aadProfileClientAppID
@@ -836,8 +844,11 @@ resource managedCluster 'Microsoft.ContainerService/managedClusters@2025-05-02-p
       enablePrivateCluster: enablePrivateCluster
       enablePrivateClusterPublicFQDN: enablePrivateClusterPublicFQDN
       privateDNSZone: privateDNSZone
+      enableVnetIntegration: enableVnetIntegration
+      subnetId: apiServerSubnetId
     }
     azureMonitorProfile: {
+      /*
       appMonitoring: appMonitoring
       containerInsights: enableContainerInsights
         ? {
@@ -859,7 +870,8 @@ resource managedCluster 'Microsoft.ContainerService/managedClusters@2025-05-02-p
             }
           }
         : null
-    }
+    */
+        }
     podIdentityProfile: {
       allowNetworkPluginKubenet: podIdentityProfileAllowNetworkPluginKubenet
       enabled: podIdentityProfileEnable
@@ -869,7 +881,7 @@ resource managedCluster 'Microsoft.ContainerService/managedClusters@2025-05-02-p
     securityProfile: {
       defender: enableAzureDefender
         ? {
-            securityGating: securityGatingConfig
+            //securityGating: securityGatingConfig
             securityMonitoring: {
               enabled: enableAzureDefender
             }
@@ -882,16 +894,19 @@ resource managedCluster 'Microsoft.ContainerService/managedClusters@2025-05-02-p
             intervalHours: imageCleanerIntervalHours
           }
         : null
+      /*
       imageIntegrity: enableImageIntegrity
         ? {
             enabled: enableImageIntegrity
           }
         : null
+
       nodeRestriction: enableNodeRestriction
         ? {
             enabled: enableNodeRestriction
           }
         : null
+        */
       workloadIdentity: enableWorkloadIdentity
         ? {
             enabled: enableWorkloadIdentity
